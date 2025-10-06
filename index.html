@@ -1164,8 +1164,7 @@ Looking for historical data about people and places? Use the Keweenaw Time Trave
 
         // new gelocation widget
         let track = new Track({
-          view: view,
-          tracking: true,
+          view: view,          
           useHeadingEnabled: false,
           goToLocationEnabled: true, 
           geolocationOptions: { maximumAge: 0, timeout: 15000, enableHighAccuracy: true }
@@ -1254,159 +1253,144 @@ Looking for historical data about people and places? Use the Keweenaw Time Trave
         const listNodeNearby = document.getElementById("nearcontent");
         const listNodeWhatsHere = document.getElementById("whatsherecontent");
 
-      $("#geolocation").click(function () {
-  if (track.tracking === false) {
-    track.start();
-    document.getElementById("gpsicon").style.color = "#3880ff";
+      
+        $( "#geolocation" ).click(function() {
+         // track.start();
+         if (track.tracking == false) {
+          track.start();
+          document.getElementById("gpsicon").style.color = "#3880ff";
+          track.once("track", ({ position }) => {
+            console.log(position);
+           currentCoords = position.coords;
+            const size =  (100 / view.resolution);
+          symbol.size = size;
+          layer.removeAll();
+          layer.add({
+            geometry: {
+              type: "point",
+              latitude: currentCoords.latitude,
+              longitude: currentCoords.longitude
+            },
+            symbol
+          });
+           const point = new Point({
+              latitude: currentCoords.latitude,
+              longitude: currentCoords.longitude
+            });
+            view.goTo({target: point, scale: 5000, speedFactor: 0.1});
 
-    // --- Debounce helper with cancel() ---
-    function debounce(fn, delay) {
-      let timeout;
-      function debounced(...args) {
-        clearTimeout(timeout);
-        timeout = setTimeout(() => fn.apply(this, args), delay);
-      }
-      debounced.cancel = () => clearTimeout(timeout);
-      return debounced;
-    }
-
-    // --- Main query & UI update function ---
-    const handlePositionUpdate = ({ position }) => {
-      const coords = position.coords;
-      console.log("GPS update:", coords);
-
-      // --- Update marker symbol ---
-      const size = 100 / view.resolution;
-      symbol.size = size;
-      layer.removeAll();
-      layer.add({
-        geometry: { type: "point", latitude: coords.latitude, longitude: coords.longitude },
-        symbol
-      });
-
-      const point = new Point({
-        latitude: coords.latitude,
-        longitude: coords.longitude
-      });
-      view.goTo({ target: point, scale: 5000, speedFactor: 0.1 });
-
-      // --- Prepare query geometry ---
-      const queryGeometry = {
-        x: coords.longitude,
-        y: coords.latitude,
-        spatialReference: { wkid: 4326 }
-      };
-
-      // --- Run feature query ---
-      arcgisRest.queryFeatures({
-        url: "https://portal1-geo.sabu.mtu.edu/server/rest/services/Hosted/giscore_grf_kett_record_locs/FeatureServer/0",
-        geometry: queryGeometry,
-        geometryType: "esriGeometryPoint",
-        spatialRel: "esriSpatialRelIntersects",
-        distance: 100,
-        units: "esriSRUnit_Foot"
-      }).then((response) => {
-        const features = response.features || [];
-        console.log("Nearby features:", features);
-
-        // --- Update count ---
-        document.getElementById("nearbycount").innerHTML = features.length;
-
-        // --- Clear old list & graphics ---
-        listNodeNearby.innerHTML = "";
-        graphicsLayer.removeAll();
-
-        // --- Sort features ---
-        features.sort(
-          (a, b) =>
-            a.attributes.title.localeCompare(b.attributes.title) ||
-            a.attributes.ayear - b.attributes.ayear
-        );
-
-        // --- Build list ---
-        const fragment = document.createDocumentFragment();
-        features.forEach((result, index) => {
-          const ddCoords = webMercatorUtils.webMercatorToGeographic(result.geometry);
-
-          const point = {
-            type: "point",
-            longitude: ddCoords.x,
-            latitude: ddCoords.y
+            console.log(currentCoords);
+            const queryGeometry = {
+            x: currentCoords.longitude,
+            y: currentCoords.latitude,
+            spatialReference: {
+              wkid: 4326
+            }
           };
 
-          const pointGraphic = new Graphic({ geometry: point });
+          console.log(lat,lon, queryGeometry);
 
-          // Symbol by entity type
-          if (result.attributes.entitytype === "person") {
-           // pointGraphic.symbol = personMarkerSymbol;
-          } else if (result.attributes.entitytype === "building") {
-           // pointGraphic.symbol = placeMarkerSymbol;
-          } else if (result.attributes.entitytype === "story") {
-           // pointGraphic.symbol = storyMarkerSymbol;
-          }
-          graphicsLayer.add(pointGraphic);
+          arcgisRest
+            .queryFeatures({
+              url: "https://portal1-geo.sabu.mtu.edu/server/rest/services/Hosted/giscore_grf_kett_record_locs/FeatureServer/0",
+              geometry: queryGeometry,
+              geometryType: "esriGeometryPoint",
+              spatialRel: "esriSpatialRelIntersects",
+              distance: 100,
+              units: "esriSRUnit_Foot"              
+            })
+            .then((response) => {
+              
+               const placeMarkerSymbol = {          
+                "type": "picture-marker",
+                "url": "assets/marker_place.png",
+                "width": "18px",
+                "height": "18px"          
+              };
 
-          // Create list item
-          const attributes = result.attributes;
-          const title = attributes.title;
-          const year = attributes.eyear;
+              const personMarkerSymbol = {          
+                "type": "picture-marker",
+                "url": "assets/marker_person.png",
+                "width": "18px",
+                "height": "18px"          
+              };
 
-          const item = document.createElement("ion-item");
-          const label = document.createElement("ion-label");
-          const icon = document.createElement("ion-icon");
+              const storyMarkerSymbol = {          
+                "type": "picture-marker",
+                "url": "assets/marker_story.png",
+                "width": "18px",
+                "height": "18px"          
+              };
+               const features = response.features;
+               console.log(features);
 
-          item.href = "#";
-          icon.slot = "end";
+               document.getElementById("nearbycount").innerHTML = features.length;
+               // Sort the features first by title, then by year  
+               features.sort(function (a, b) {
+                  return a.attributes.title.localeCompare(b.attributes.title) || a.attributes.ayear - b.attributes.ayear;
+                });
+                
+                let item;
+                const fragment = document.createDocumentFragment();
+                features.forEach(function(result, index) {
+                     // convert the coordinates into decimal degrees
+                const ddCoords = webMercatorUtils.webMercatorToGeographic(result.geometry);
+          
+                const point = { //Create a point
+                  type: "point",
+                  longitude: ddCoords.x,
+                  latitude:  ddCoords.y,
+                };          
 
-          if (attributes.entitytype === "person") {
-            icon.name = "people-outline";
-          } else if (attributes.entitytype === "building") {
-            icon.name = "home-outline";
-          } else if (attributes.entitytype === "story") {
-            icon.name = "book-outline";
-          }
+               const pointGraphic = new Graphic({
+                  geometry: point,
+                 // symbol: simpleMarkerSymbol
+               });
 
-          label.innerHTML = `${year} ${title}`;
-          item.appendChild(icon);
-          item.appendChild(label);
-          item.addEventListener("click", () => resultClickHandler(result, index));
-
-          fragment.appendChild(item);
+               if (result.attributes.entitytype == "person") {
+                pointGraphic.symbol = personMarkerSymbol;
+               } else if (result.attributes.entitytype == "building") {
+                pointGraphic.symbol = placeMarkerSymbol;
+               } else if (result.attributes.entitytype == "story") {
+                pointGraphic.symbol = storyMarkerSymbol;
+               }
+               graphicsLayer.add(pointGraphic, 0);
+                    const attributes = result.attributes;
+                    const title = attributes.title;
+                    const year = attributes.eyear;
+                    console.log(title);
+                    item = document.createElement("ion-item");
+                    const label = document.createElement("ion-label");
+                    const icon = document.createElement("ion-icon"); 
+                    item.href = "#"; 
+                    if (attributes.entitytype == "person") {
+                      icon.name = "people-outline";
+                    } else if (attributes.entitytype == "building") {
+                      icon.name = "home-outline";
+                    } else if (attributes.entitytype == "story") {
+                      icon.name = "book-outline";
+                    }                
+                    
+                    item.detail = "false";                                         
+                    icon.slot = "end";
+                    label.innerHTML = year + " " + title; 
+                    item.appendChild(icon);
+                    item.appendChild(label);
+                    item.addEventListener("click", () => resultClickHandler(result, index));
+                    fragment.appendChild(item);                     
+                    listNodeNearby.appendChild(fragment);
+                }); 
+            });
+          });
+         } else {
+          track.stop();
+          document.getElementById("gpsicon").style.color = "black";
+         }            
         });
 
-        listNodeNearby.appendChild(fragment);
-      });
-    };
-
-    // --- Wrap with debounce (2s delay) ---
-    const debouncedUpdate = debounce(handlePositionUpdate, 2000);
-
-    // --- Listen for GPS updates continuously ---
-    track.on("track", debouncedUpdate);
-
-    track.on("track", ({ position }) => {
-  const { longitude, latitude } = position.coords;
-  console.log("Track", `${longitude.toFixed(4)}, ${latitude.toFixed(4)}`);
-});
-
-    // Store reference so we can cancel later
-    window._debouncedUpdate = debouncedUpdate;
-
-  } else {
-    track.stop();
-    document.getElementById("gpsicon").style.color = "black";
-
-    // --- Cancel pending debounced update if user stopped GPS ---
-    if (window._debouncedUpdate) {
-      window._debouncedUpdate.cancel();
-      window._debouncedUpdate = null;
-    }
-  }
-});
-
-// declare lat and lon on global scope
-let lat;
-let lon;
+        // declare lat and long on global scales
+        let lat;
+        let lon;
         function setGeolocation() {
           const geolocation = window.navigator.geolocation.watchPosition( function ( position ) {
 
