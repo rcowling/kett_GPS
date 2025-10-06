@@ -1165,8 +1165,9 @@ Looking for historical data about people and places? Use the Keweenaw Time Trave
         // new gelocation widget
         let track = new Track({
           view: view,
+          tracking: true,
           useHeadingEnabled: false,
-          goToLocationEnabled: false, 
+          goToLocationEnabled: true, 
           geolocationOptions: { maximumAge: 0, timeout: 15000, enableHighAccuracy: true }
         });
         let highlightSelect;
@@ -1382,6 +1383,11 @@ Looking for historical data about people and places? Use the Keweenaw Time Trave
 
     // --- Listen for GPS updates continuously ---
     track.on("track", debouncedUpdate);
+
+    track.on("track", ({ position }) => {
+  const { longitude, latitude } = position.coords;
+  console.log("Track", `${longitude.toFixed(4)}, ${latitude.toFixed(4)}`);
+});
 
     // Store reference so we can cancel later
     window._debouncedUpdate = debouncedUpdate;
