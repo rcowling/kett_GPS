@@ -1260,10 +1260,11 @@ Looking for historical data about people and places? Use the Keweenaw Time Trave
           track.start();
           document.getElementById("gpsicon").style.color = "#3880ff";
           track.on("track", ({ position }) => {
+            listNodeNearby.innerHTML = "";
             console.log(position);
            // window.alert("updated position!");
            currentCoords = position.coords;
-            const size =  (100 / view.resolution);
+          const size =  (100 / view.resolution);
           symbol.size = size;
           layer.removeAll();
           layer.add({
@@ -1274,11 +1275,13 @@ Looking for historical data about people and places? Use the Keweenaw Time Trave
             },
             symbol
           });
+          
            const point = new Point({
               latitude: currentCoords.latitude,
               longitude: currentCoords.longitude
-            });
-            view.goTo({target: point, scale: 5000, speedFactor: 0.1});
+           });
+
+          // view.goTo({target: point, scale: 5000, speedFactor: 0.1});
 
             console.log(currentCoords);
             const queryGeometry = {
