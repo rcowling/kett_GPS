@@ -249,7 +249,24 @@
 Looking for historical data about people and places? Use the Keweenaw Time Traveler on your desktop to connect these maps with millions of other records about the Keweenaw’s past, including census, city directories, school records and more. 
  </p>          
       </ion-content>
-    </ion-modal>                 
+    </ion-modal>              
+     <ion-modal id="censushModal">
+      <ion-header>
+        <ion-toolbar color="gray">
+          <ion-text color="white">
+          <ion-title id="recTitle"></ion-title>
+      </ion-text>
+          <ion-buttons slot="end">
+            <ion-text color="white">
+            <ion-button id="censusModalClose">Close</ion-button>
+        </ion-text>
+          </ion-buttons>
+        </ion-toolbar>
+      </ion-header>
+      <ion-content class="ion-padding" style="--ion-background-color: #285756">      
+          <div id="censusTableContainer"></div>
+      </ion-content>
+    </ion-modal>               
           <div id="viewDiv"></div>           
           <ion-range value="100" mode="md"></ion-range> 
           <ion-fab horizontal="end" vertical="bottom" slot="fixed">
@@ -511,11 +528,17 @@ Looking for historical data about people and places? Use the Keweenaw Time Trave
           toast.duration = 2000;
           document.body.appendChild(toast);
           return toast.present();
-        }       
+        } 
+        
+        function queryCensusRec (feature) {
+
+        }
 
         var StoryModal = document.getElementById('storyModal');
 
         var splashModal = document.getElementById('splashModal');
+
+        var censusModal = document.getElementById('censusModal');
 
         var slides = document.querySelector('ion-slides');
 
@@ -1140,6 +1163,14 @@ Looking for historical data about people and places? Use the Keweenaw Time Trave
           renderer: storiesRenderer,
           definitionExpression: "flag IS NULL"
         });
+
+         // historical census records
+        const censusRecs = new FeatureLayer({
+          url: "https://portal1-geo.sabu.mtu.edu/server/rest/services/Hosted/cesnsus_records_allyears/FeatureServer",
+          id: "cenrecs",
+          outFields: ["*"]
+        });
+
         const layer = new GraphicsLayer();
         const graphicsLayer = new GraphicsLayer();
       //map.add(graphicsLayer);
@@ -1381,7 +1412,7 @@ Looking for historical data about people and places? Use the Keweenaw Time Trave
                     label.innerHTML = year + " " + title; 
                     item.appendChild(icon);
                     item.appendChild(label);
-                    item.addEventListener("click", () => resultClickHandler(result, index));
+                    item.addEventListener("click", () => resultClickHandlerGPS(result, index));
                     fragment.appendChild(item);                     
                     listNodeNearby.appendChild(fragment);
                 }); 
@@ -1392,6 +1423,76 @@ Looking for historical data about people and places? Use the Keweenaw Time Trave
           document.getElementById("gpsicon").style.color = "black";
          }            
         });
+
+        function resultClickHandlerGPS(result, index) { 
+         const recId = result.attributes.recordid; 
+          let censusQuery = censusRecs.createQuery();
+                censusQuery.where = "recordid = '" + recId + "'" ; // use the person records ID number in the Census Records layer
+                censusQuery.outFields = ["*"];
+                // Execute the query for a persons' census records
+                censusRecs.queryFeatures(censusQuery)
+                  .then(function(response) {
+                    if (response.features.length > 0) {
+                    const features = response.features[0].attributes;
+
+                    const fieldNames = {
+                      namefirst: "First Name",
+                      namelast: "Last Name",
+                      occupation: "Occupation",
+                      ownership: "Ownership",
+                      race: "Race",
+                      relhouse: "Relation to Householder",
+                      industry: "Industry",
+                      age: "Age",
+                      birthplace: "Birthplace",
+                      birthyear: "Birth Year",
+                      canread: "Can Read",
+                      canwrite: "Can Write",
+                      censusyear: "Census Year",
+                      citizenship: "Citizenship",
+                      fbirthplace: "Father's Birthplace",
+                      mstatus: "Marital Status",
+                      natvlang: "Native Language",
+                      speakeng: "Speaks English",
+                      speaks: "Other Languages Spoken",
+                      sex: "Sex",
+                      wrkrclass: "Worker Class",
+                      year_immigrated: "Year Immigrated"
+                    }; 
+                    
+                    
+                    // Build table HTML dynamically
+      let tableHTML = `<ion-card><ion-card-content>
+        <ion-grid>
+          <ion-row>
+            <ion-col><strong>Field</strong></ion-col>
+            <ion-col><strong>Value</strong></ion-col>
+          </ion-row>`;
+
+      for (const key in fieldNames) {
+        if (features.hasOwnProperty(key)) {
+          const label = fieldNames[key];
+          const value = features[key] ?? "—";
+          tableHTML += `
+            <ion-row>
+              <ion-col>${label}</ion-col>
+              <ion-col>${value}</ion-col>
+            </ion-row>`;
+        }
+      }
+
+      tableHTML += `</ion-grid></ion-card-content></ion-card>`;
+
+      // Set modal content
+      document.getElementById("recTitle").innerText =
+        `${features.namefirst || ""} ${features.namelast || ""} (Age: ${features.age || "N/A"})`;
+
+      document.getElementById("censusTableContainer").innerHTML = tableHTML;
+
+      censusModal.isOpen = true;
+                  } 
+              });         
+        }     
 
         // declare lat and long on global scales
         let lat;
