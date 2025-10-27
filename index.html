@@ -1425,6 +1425,7 @@ Looking for historical data about people and places? Use the Keweenaw Time Trave
         });
 
         function resultClickHandlerGPS(result, index) { 
+        console.log('rec click' + result.attributes.recordid);
          const recId = result.attributes.recordid; 
           let censusQuery = censusRecs.createQuery();
                 censusQuery.where = "recordid = '" + recId + "'" ; // use the person records ID number in the Census Records layer
@@ -1432,7 +1433,8 @@ Looking for historical data about people and places? Use the Keweenaw Time Trave
                 // Execute the query for a persons' census records
                 censusRecs.queryFeatures(censusQuery)
                   .then(function(response) {
-                    if (response.features.length > 0) {
+                    if (response.features.length >= 0) {
+                      console.log(response);
                     const features = response.features[0].attributes;
 
                     const fieldNames = {
